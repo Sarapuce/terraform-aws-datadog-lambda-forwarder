@@ -10,6 +10,8 @@ locals {
   forwarder_log_artifact_url = var.forwarder_log_artifact_url != null ? var.forwarder_log_artifact_url : (
     "https://github.com/DataDog/datadog-serverless-functions/releases/download/aws-dd-forwarder-${var.dd_forwarder_version}/${var.dd_artifact_filename}-${var.dd_forwarder_version}.zip"
   )
+  # Add the cache KMS key in the list of authorized KMS keys
+  s3_bucket_kms_arns = var.forwarder_cache_bucket_key == "" || contains(var.s3_bucket_kms_arns, var.forwarder_cache_bucket_key) ? var.s3_bucket_kms_arns : concat(var.s3_bucket_kms_arns, [var.forwarder_cache_bucket_key])
 }
 
 module "forwarder_log_label" {
@@ -174,14 +176,14 @@ data "aws_iam_policy_document" "s3_log_bucket" {
   }
 
   dynamic "statement" {
-    for_each = try(length(var.s3_bucket_kms_arns), 0) > 0 ? [true] : []
+    for_each = length(local.s3_bucket_kms_arns) > 0 ? [true] : []
     content {
       effect = "Allow"
 
       actions = [
         "kms:Decrypt"
       ]
-      resources = var.s3_bucket_kms_arns
+      resources = local.s3_bucket_kms_arns
     }
   }
 
@@ -288,4 +290,8 @@ module "tags_cache_s3_bucket" {
   attributes = concat(module.forwarder_log_label.attributes, ["cache"])
 
   context = module.forwarder_log_label.context
+
+  bucket_key_enabled = var.forwarder_cache_bucket_key == "" ? false : true
+  kms_master_key_arn = var.forwarder_cache_bucket_key
+  sse_algorithm      = var.forwarder_cache_bucket_key == "" ? "AES256" : "aws:kms"
 }

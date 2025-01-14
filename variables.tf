@@ -334,3 +334,15 @@ variable "forwarder_use_cache_bucket" {
   description = "Flag to enable or disable the cache bucket for lambda tags and failed events. See https://docs.datadoghq.com/logs/guide/forwarder/?tab=cloudformation#upgrade-an-older-version-to-31060. Recommended for forwarder versions 3.106 and higher."
   default     = true
 }
+
+variable "forwarder_cache_bucket_key" {
+  type        = string
+  description = "The arn of the KMS key to use for the cache bucket"
+  default     = ""
+
+  # Check KMS ARN format
+  validation {
+    condition     = can(regex("arn:.*:kms:.*:key/.*", var.forwarder_cache_bucket_key)) || var.forwarder_cache_bucket_key == ""
+    error_message = "ARN for KMS key does not appear to be valid format (example: arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab)."
+  }
+}
